@@ -67,9 +67,11 @@ function renderMeals(){
  list.querySelectorAll("[data-delete]").forEach(btn=>btn.addEventListener("click",()=>{state.deletedMealIds=[...new Set([...state.deletedMealIds,btn.dataset.delete])];state.meals=state.meals.filter(m=>m.id!==btn.dataset.delete);persist();update()}));
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function openPhoto(){ $("photoInput").click() }
+function openPhoto(){$("photoInput").click()}
+function openLibrary(){$("libraryInput").click()}
 $("captureBtn").addEventListener("click",openPhoto);
-$("photoInput").addEventListener("change",async e=>{
+if($("libraryBtn"))$("libraryBtn").addEventListener("click",openLibrary);
+async function handlePhotoChange(e){
  const file=e.target.files?.[0];if(!file)return;
  pendingPhoto=await resizePhoto(file);$("preview").src=pendingPhoto;
  $("mealName").value="";["mealCalories","mealProtein","mealCarbs","mealFat"].forEach(id=>$(id).value="");
@@ -78,7 +80,9 @@ $("photoInput").addEventListener("change",async e=>{
  try{const result=await analyzePhoto(pendingPhoto);fillDraft(result);$("aiStatus").textContent="AI estimate ready — check portions and ingredients, then save."}
  catch(err){$("aiStatus").textContent=err.message+" You can still enter the nutrition manually."}
  e.target.value="";
-});
+}
+$("photoInput").addEventListener("change",handlePhotoChange);
+if($("libraryInput"))$("libraryInput").addEventListener("change",handlePhotoChange);
 async function resizePhoto(file){return await new Promise(resolve=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const c=document.createElement("canvas"),max=1400,scale=Math.min(1,max/Math.max(img.width,img.height));c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);resolve(c.toDataURL("image/jpeg",.82))};img.src=url})}
 async function analyzePhoto(imageDataUrl){
  const photo=await (await fetch(imageDataUrl)).blob();
