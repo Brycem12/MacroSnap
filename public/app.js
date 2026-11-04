@@ -45,6 +45,59 @@ async function syncWithServer(){
 function todayMeals(){const today=new Date().toDateString();return state.meals.filter(m=>new Date(m.date).toDateString()===today)}
 function totals(){return todayMeals().reduce((a,m)=>({calories:a.calories+Number(m.calories),protein:a.protein+Number(m.protein),carbs:a.carbs+Number(m.carbs),fat:a.fat+Number(m.fat)}),{calories:0,protein:0,carbs:0,fat:0})}
 function fmt(n){return Math.round(n).toLocaleString("en-US")}
+
+const recommendationFoods = [
+ {name:"Chicken breast",serving:"4 oz cooked",calories:187,protein:35,carbs:0,fat:4,max:4},
+ {name:"Plain Greek yogurt",serving:"170 g",calories:100,protein:17,carbs:6,fat:0,max:4},
+ {name:"Cooked rice",serving:"1 cup",calories:205,protein:4,carbs:45,fat:0,max:4},
+ {name:"Oats",serving:"1/2 cup dry",calories:150,protein:5,carbs:27,fat:3,max:3},
+ {name:"Salmon",serving:"4 oz cooked",calories:233,protein:25,carbs:0,fat:14,max:3},
+ {name:"Avocado",serving:"1/2 medium",calories:120,protein:2,carbs:6,fat:11,max:2},
+ {name:"Banana",serving:"1 medium",calories:105,protein:1,carbs:27,fat:0,max:3}
+];
+function remainingTargets(){
+ const t=totals(),g=state.goals;
+ return {calories:Math.max(0,g.calories-t.calories),protein:Math.max(0,g.protein-t.protein),carbs:Math.max(0,g.carbs-t.carbs),fat:Math.max(0,g.fat-t.fat)};
+}
+function buildRecommendationPlan(target){
+ const sum={calories:0,protein:0,carbs:0,fat:0},counts=Array(recommendationFoods.length).fill(0);
+ let best=null;
+ function score(servings){
+  const dimensions=[["calories",target.calories,0.65,100],["protein",target.protein,1.3,15],["carbs",target.carbs,1.1,15],["fat",target.fat,1.1,10]];
+  let value=0;
+  dimensions.forEach(([key,goal,weight,floor])=>{const delta=(sum[key]-goal)/Math.max(goal,floor);value+=weight*delta*delta*(delta>0?4:1)});
+  return value+servings*0.008;
+ }
+ function visit(index,servings){
+  if(index===recommendationFoods.length){
+   if(!servings)return;
+   const value=score(servings);
+   if(!best||value<best.score)best={score:value,counts:counts.slice(),totals:{...sum}};
+   return;
+  }
+  const food=recommendationFoods[index];
+  for(let count=0;count<=food.max;count++){
+   counts[index]=count;sum.calories+=food.calories*count;sum.protein+=food.protein*count;sum.carbs+=food.carbs*count;sum.fat+=food.fat*count;
+   visit(index+1,servings+count);
+   sum.calories-=food.calories*count;sum.protein-=food.protein*count;sum.carbs-=food.carbs*count;sum.fat-=food.fat*count;
+  }
+ }
+ visit(0,0);return best;
+}
+function renderRecommendations(){
+ const remaining=remainingTargets();
+ $("remainingCalories").textContent=fmt(remaining.calories);
+ $("remainingProtein").textContent=fmt(remaining.protein)+"g";
+ $("remainingCarbs").textContent=fmt(remaining.carbs)+"g";
+ $("remainingFat").textContent=fmt(remaining.fat)+"g";
+ const content=$("recommendationContent");
+ if(!remaining.protein&&!remaining.carbs&&!remaining.fat){content.innerHTML='<div class="empty-state"><div class="empty-icon">✓</div><b>Your macro targets are met</b><p>You do not need to eat just to use up remaining calories.</p></div>';return}
+ if(!remaining.calories){content.innerHTML='<div class="empty-state"><div class="empty-icon">◎</div><b>You have reached your calorie target</b><p>If you are hungry, choose a light option and adjust your goals as needed.</p></div>';return}
+ const plan=buildRecommendationPlan(remaining);
+ if(!plan){content.innerHTML='<div class="empty-state"><b>No plan found</b><p>Try adjusting your daily targets in Goals.</p></div>';return}
+ const rows=plan.counts.map((count,index)=>{if(!count)return '';const food=recommendationFoods[index];return '<div class="plan-food"><div><b>'+food.name+'</b><small>'+count+' × '+food.serving+'</small></div><span>'+fmt(food.calories*count)+' kcal</span></div>'}).filter(Boolean).join('');
+ content.innerHTML='<article class="recommendation-card"><div class="eyebrow">A POSSIBLE REST-OF-DAY PLAN</div><h3>Simple foods to help close the gap</h3><div class="plan-foods">'+rows+'</div><div class="plan-total"><span>Plan estimate</span><b>'+fmt(plan.totals.calories)+' kcal · '+fmt(plan.totals.protein)+'g protein · '+fmt(plan.totals.carbs)+'g carbs · '+fmt(plan.totals.fat)+'g fat</b></div><p class="disclaimer">These are approximate portions, not a food log. Actual nutrition varies by brand and preparation; adjust the portions to fit your appetite.</p></article>';
+}
 function update(){
  const t=totals(),g=state.goals;
  $("todayLabel").textContent=new Date().toLocaleDateString(undefined,{weekday:"long",month:"short",day:"numeric"});
@@ -59,6 +112,7 @@ function update(){
   $(id+"Bar").style.width=Math.min(100,v/goal*100)+"%";
  });
  renderMeals();
+ if(!$("recommendationsView").hidden)renderRecommendations();
 }
 function renderMeals(){
  const list=$("mealList"), meals=todayMeals().sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -104,12 +158,20 @@ $("mealForm").addEventListener("submit",e=>{
  if(!meal.name||![meal.calories,meal.protein,meal.carbs,meal.fat].every(Number.isFinite))return;
  state.meals.push(meal);persist();$("mealDialog").close();pendingPhoto=null;update();
 });
-$("settingsBtn").addEventListener("click",openGoals);$("goalsNav").addEventListener("click",openGoals);
+function activateTab(tab){
+ const isPlan=tab==="recommendations";
+ $("todayView").hidden=isPlan;$("recommendationsView").hidden=!isPlan;
+ ["todayNav","historyNav","recommendationsNav","goalsNav"].forEach(id=>$(id).classList.toggle("active",id===(isPlan?"recommendationsNav":"todayNav")));
+ if(isPlan)renderRecommendations();
+}
+$("todayNav").addEventListener("click",()=>activateTab("today"));
+$("recommendationsNav").addEventListener("click",()=>activateTab("recommendations"));
+$("settingsBtn").addEventListener("click",openGoals);$("goalsNav").addEventListener("click",()=>{activateTab("today");openGoals()});
 function openGoals(){const g=state.goals;$("goalCalories").value=g.calories;$("goalProtein").value=g.protein;$("goalCarbs").value=g.carbs;$("goalFat").value=g.fat;$("aiAccessCode").value=localStorage.getItem("macrosnap-access-code")||"";if($("syncAccessCode"))$("syncAccessCode").value=localStorage.getItem(SYNC_CODE_KEY)||"";if($("disableSyncBtn"))$("disableSyncBtn").hidden=!syncEnabled();setSyncStatus(syncEnabled()?"Sync is on for this device.":"Sync is off on this device.");$("goalsDialog").showModal()}
 if($("enableSyncBtn"))$("enableSyncBtn").addEventListener("click",async()=>{const code=$("syncAccessCode").value.trim();if(code.length<16){setSyncStatus("Use a sync code with at least 16 characters.");return}localStorage.setItem(SYNC_CODE_KEY,code);localStorage.setItem(SYNC_ENABLED_KEY,"true");$("disableSyncBtn").hidden=false;await syncWithServer()});
 if($("disableSyncBtn"))$("disableSyncBtn").addEventListener("click",()=>{localStorage.removeItem(SYNC_ENABLED_KEY);localStorage.removeItem(SYNC_CODE_KEY);clearTimeout(syncTimer);$("disableSyncBtn").hidden=true;setSyncStatus("Sync is off here. Your shared data remains on the Netlify site.")});
 $("goalsForm").addEventListener("submit",e=>{if(e.submitter?.value==="cancel")return;e.preventDefault();state.goals={calories:+$("goalCalories").value,protein:+$("goalProtein").value,carbs:+$("goalCarbs").value,fat:+$("goalFat").value};state.goalUpdatedAt=Date.now();const accessCode=$("aiAccessCode").value.trim();if(accessCode)localStorage.setItem("macrosnap-access-code",accessCode);else localStorage.removeItem("macrosnap-access-code");persist();$("goalsDialog").close();update()});
-$("historyNav").addEventListener("click",()=>{const all=[...state.meals].sort((a,b)=>new Date(b.date)-new Date(a.date));$("historyContent").innerHTML=all.length?all.map(m=>`<div class="meal-row"><div class="meal-info"><b>${escapeHtml(m.name)}</b><small>${new Date(m.date).toLocaleString()}</small></div><b>${fmt(m.calories)} kcal</b></div>`).join(""):'<p class="disclaimer">No meals logged yet.</p>';$("historyDialog").showModal()});
+$("historyNav").addEventListener("click",()=>{activateTab("today");const all=[...state.meals].sort((a,b)=>new Date(b.date)-new Date(a.date));$("historyContent").innerHTML=all.length?all.map(m=>`<div class="meal-row"><div class="meal-info"><b>${escapeHtml(m.name)}</b><small>${new Date(m.date).toLocaleString()}</small></div><b>${fmt(m.calories)} kcal</b></div>`).join(""):'<p class="disclaimer">No meals logged yet.</p>';$("historyDialog").showModal()});
 if("serviceWorker" in navigator && location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
 window.addEventListener("focus",()=>{if(syncEnabled())syncWithServer()});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&syncEnabled())syncWithServer()});
