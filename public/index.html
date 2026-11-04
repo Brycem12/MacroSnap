@@ -80,6 +80,16 @@
       </div>
       <label>MacroSnap access code (if enabled)<input id="aiAccessCode" type="password" autocomplete="off" placeholder="Enter your private app code"></label>
       <p class="disclaimer">Your Gemini API key stays on Netlify's server. Never enter it here.</p>
+      <section class="sync-panel" aria-labelledby="syncHeading">
+        <div class="eyebrow">CROSS DEVICE SYNC</div>
+        <h3 id="syncHeading">Share meals and goals</h3>
+        <p class="disclaimer">Sync sends meal names, dates, nutrition, notes, and goals to your MacroSnap Netlify site. Meal photos stay on this device.</p>
+        <label>Private sync code<input id="syncAccessCode" type="password" autocomplete="off" placeholder="Use the same code on both devices"></label>
+        <p class="sync-hint">First add <b>MACROSNAP_SYNC_CODE</b> in Netlify. Use a code with at least 16 characters, then enter the same code on each device.</p>
+        <p class="sync-status" id="syncStatus" role="status">Sync is off on this device.</p>
+        <button type="button" class="primary-btn full-btn" id="enableSyncBtn">Enable &amp; sync</button>
+        <button type="button" class="secondary-btn full-btn" id="disableSyncBtn" hidden>Turn off sync on this device</button>
+      </section>
       <button type="submit" class="primary-btn full-btn">Save settings</button>
     </form>
   </dialog>
