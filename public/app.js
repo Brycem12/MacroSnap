@@ -36,16 +36,18 @@ $("photoInput").addEventListener("change",async e=>{
  const file=e.target.files?.[0];if(!file)return;
  pendingPhoto=await resizePhoto(file);$("preview").src=pendingPhoto;
  $("mealName").value="";["mealCalories","mealProtein","mealCarbs","mealFat"].forEach(id=>$(id).value="");
- $("mealNotes").value="";$("aiStatus").textContent="Photo ready. Connect the AI endpoint to estimate macros automatically, or enter values manually.";
+ $("mealNotes").value="";$("aiStatus").textContent="Preparing the resized photo for analysis…";
  $("mealDialog").showModal();
- try{const result=await analyzePhoto(file);fillDraft(result);$("aiStatus").textContent="AI estimate ready — check portions and ingredients, then save."}
+ try{const result=await analyzePhoto(pendingPhoto);fillDraft(result);$("aiStatus").textContent="AI estimate ready — check portions and ingredients, then save."}
  catch(err){$("aiStatus").textContent=err.message+" You can still enter the nutrition manually."}
  e.target.value="";
 });
 async function resizePhoto(file){return await new Promise(resolve=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const c=document.createElement("canvas"),max=1400,scale=Math.min(1,max/Math.max(img.width,img.height));c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);resolve(c.toDataURL("image/jpeg",.82))};img.src=url})}
-async function analyzePhoto(file){
+async function analyzePhoto(imageDataUrl){
+ const photo=await (await fetch(imageDataUrl)).blob();
+ if(photo.size>4*1024*1024)throw new Error("This photo is still too large after resizing. Please choose a smaller image.");
  const accessCode=localStorage.getItem("macrosnap-access-code")||"";
- const fd=new FormData();fd.append("photo",file,"meal.jpg");fd.append("date",new Date().toISOString());
+ const fd=new FormData();fd.append("photo",photo,"meal.jpg");fd.append("date",new Date().toISOString());
  const res=await fetch("/.netlify/functions/analyze-meal",{method:"POST",body:fd,headers:{"X-Macrosnap-Access-Code":accessCode}});
  if(!res.ok){const problem=await res.json().catch(()=>({}));throw new Error(problem.error||"AI service could not analyze this photo.");}
  const d=await res.json();
