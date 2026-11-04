@@ -25,7 +25,7 @@ function update(){
 }
 function renderMeals(){
  const list=$("mealList"), meals=todayMeals().sort((a,b)=>new Date(b.date)-new Date(a.date));
- if(!meals.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">🥗</div><b>Your food journal starts here</b><p>Snap a meal photo to add it to today\\'s totals.</p></div>';return}
+ if(!meals.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">🥗</div><b>Your food journal starts here</b><p>Snap a meal photo to add it to today\'s totals.</p></div>';return}
  list.innerHTML=meals.map(m=>`<article class="meal-row"><img class="meal-thumb" src="${m.photo||''}" alt=""><div class="meal-info"><b>${escapeHtml(m.name)}</b><small>P ${fmt(m.protein)}g · C ${fmt(m.carbs)}g · F ${fmt(m.fat)}g</small></div><div class="meal-kcal">${fmt(m.calories)} kcal</div><button class="delete-meal" data-delete="${m.id}" aria-label="Delete meal">×</button></article>`).join("");
  list.querySelectorAll("[data-delete]").forEach(btn=>btn.addEventListener("click",()=>{state.meals=state.meals.filter(m=>m.id!==btn.dataset.delete);persist();update()}));
 }
