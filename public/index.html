@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10131b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MacroSnap">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <title>MacroSnap</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">YOUR DAILY FUEL</div>
+        <h1>Macro<span>Snap</span></h1>
+      </div>
+      <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙</button>
+    </header>
+
+    <main>
+      <section class="date-row">
+        <div><div class="eyebrow">DAILY OVERVIEW</div><h2 id="todayLabel">Today</h2></div>
+        <div class="streak">🔥 <b id="mealCount">0</b><small> meals</small></div>
+      </section>
+
+      <section class="hero-card">
+        <div class="hero-head"><div><div class="eyebrow">CALORIES CONSUMED</div><div class="calorie-line"><strong id="calConsumed">0</strong><span> / <span id="calGoal">1,900</span> kcal</span></div></div>
+          <div class="remaining-pill"><span id="calRemaining">1,900</span><small>LEFT</small></div>
+        </div>
+        <div class="bar-track"><div class="bar-fill calorie-fill" id="calBar"></div></div>
+        <div class="hero-foot"><span>Daily target</span><span id="calPercent">0% completed</span></div>
+      </section>
+
+      <section class="macro-grid">
+        <article class="macro-card protein"><div class="macro-top"><span class="macro-dot"></span><span>PROTEIN</span><span class="macro-icon">✦</span></div><div class="macro-value"><b id="pConsumed">0</b><small>g</small></div><div class="macro-sub"><span id="pRemaining">180g left</span><span>/ <span id="pGoal">180</span>g</span></div><div class="bar-track"><div class="bar-fill" id="pBar"></div></div></article>
+        <article class="macro-card carbs"><div class="macro-top"><span class="macro-dot"></span><span>CARBS</span><span class="macro-icon">◈</span></div><div class="macro-value"><b id="cConsumed">0</b><small>g</small></div><div class="macro-sub"><span id="cRemaining">150g left</span><span>/ <span id="cGoal">150</span>g</span></div><div class="bar-track"><div class="bar-fill" id="cBar"></div></div></article>
+        <article class="macro-card fats"><div class="macro-top"><span class="macro-dot"></span><span>FAT</span><span class="macro-icon">◉</span></div><div class="macro-value"><b id="fConsumed">0</b><small>g</small></div><div class="macro-sub"><span id="fRemaining">55g left</span><span>/ <span id="fGoal">55</span>g</span></div><div class="bar-track"><div class="bar-fill" id="fBar"></div></div></article>
+      </section>
+
+      <section class="section-head"><div><div class="eyebrow">KEEP YOUR MOMENTUM</div><h2>Today's meals</h2></div><span class="count-badge" id="journalCount">0 LOGGED</span></section>
+      <section id="mealList" class="meal-list"><div class="empty-state"><div class="empty-icon">🥗</div><b>Your food journal starts here</b><p>Snap a meal photo to add it to today's totals.</p></div></section>
+
+      <button class="capture-btn" id="captureBtn"><span class="camera-icon">＋</span><span><b>Log a meal</b><small>Take a photo or choose from library</small></span><span class="capture-arrow">→</span></button>
+      <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+      <p class="disclaimer">Nutrition from photos is an estimate. Check serving sizes, cooking oils, sauces and hidden ingredients.</p>
+    </main>
+    <nav class="bottom-nav"><div class="nav-item active"><span>◫</span>Today</div><div class="nav-item" id="historyNav"><span>▤</span>History</div><div class="nav-item" id="goalsNav"><span>◎</span>Goals</div></nav>
+  </div>
+
+  <dialog id="mealDialog" class="sheet">
+    <form method="dialog" id="mealForm">
+      <div class="sheet-handle"></div><div class="sheet-title-row"><div><div class="eyebrow">NEW ENTRY</div><h2>Review your meal</h2></div><button class="close-btn" value="cancel" aria-label="Close">×</button></div>
+      <img id="preview" class="photo-preview" alt="Selected meal photo">
+      <div class="ai-status" id="aiStatus">Add a photo to estimate your macros.</div>
+      <label>Meal name<input id="mealName" required placeholder="e.g. Chicken rice bowl"></label>
+      <div class="field-grid">
+        <label>Calories<input id="mealCalories" type="number" min="0" step="1" required></label>
+        <label>Protein (g)<input id="mealProtein" type="number" min="0" step="0.1" required></label>
+        <label>Carbs (g)<input id="mealCarbs" type="number" min="0" step="0.1" required></label>
+        <label>Fat (g)<input id="mealFat" type="number" min="0" step="0.1" required></label>
+      </div>
+      <label>Notes (optional)<textarea id="mealNotes" rows="2" placeholder="Ingredients, portion details…"></textarea></label>
+      <div class="button-row"><button type="button" class="secondary-btn" id="manualBtn">Enter manually</button><button type="submit" class="primary-btn" id="saveMealBtn">Save meal</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="goalsDialog" class="sheet">
+    <form method="dialog" id="goalsForm">
+      <div class="sheet-handle"></div><div class="sheet-title-row"><div><div class="eyebrow">PERSONAL TARGETS</div><h2>Daily macro goals</h2></div><button class="close-btn" value="cancel">×</button></div>
+      <div class="field-grid">
+        <label>Calories<input id="goalCalories" type="number" min="1"></label>
+        <label>Protein (g)<input id="goalProtein" type="number" min="1"></label>
+        <label>Carbs (g)<input id="goalCarbs" type="number" min="1"></label>
+        <label>Fat (g)<input id="goalFat" type="number" min="1"></label>
+      </div>
+      <label>MacroSnap access code (if enabled)<input id="aiAccessCode" type="password" autocomplete="off" placeholder="Enter your private app code"></label>
+      <p class="disclaimer">Your Gemini API key stays on Netlify's server. Never enter it here.</p>
+      <button type="submit" class="primary-btn full-btn">Save settings</button>
+    </form>
+  </dialog>
+
+  <dialog id="historyDialog" class="sheet">
+    <form method="dialog"><div class="sheet-handle"></div><div class="sheet-title-row"><div><div class="eyebrow">YOUR LOG</div><h2>Meal history</h2></div><button class="close-btn" value="cancel">×</button></div><div id="historyContent" class="history-content"></div><button class="primary-btn full-btn" value="close">Done</button></form>
+  </dialog>
+  <script src="app.js"></script>
+</body>
+</html>
