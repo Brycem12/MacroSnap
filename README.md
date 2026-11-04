@@ -5,7 +5,7 @@ This package replaces the static-only PWA with a Netlify Functions deployment th
 ## Features
 - Existing dark iPhone PWA dashboard, photo journal, custom goals and local storage
 - Photo upload to `/.netlify/functions/analyze-meal`
-- Gemini 2.5 Flash image analysis and JSON nutrition estimate
+- Gemini 3.8 Flash image analysis and JSON nutrition estimate
 - Gemini API key remains server-side in Netlify environment variables
 - Optional app access code protects the analysis function from casual public use
 
@@ -24,7 +24,7 @@ Netlify docs:
 - https://docs.netlify.com/build/functions/configuration/
 
 ## Gemini
-Uses `gemini-2.5-flash` via the Gemini Developer API. Free tier availability and rate limits depend on model and region and may change. Google states free-tier content may be used to improve its products. Do not upload photos containing sensitive personal information.
+Uses `gemini-3.8-flash` via the Gemini Developer API. Free tier availability and rate limits depend on model and region and may change. Google states free-tier content may be used to improve its products. Do not upload photos containing sensitive personal information.
 
 ## Test
 Once deployed and environment variables are saved:
