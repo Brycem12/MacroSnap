@@ -6,6 +6,8 @@ const STORE_KEY = "shared";
 const MAX_BODY_BYTES = 1_000_000;
 const MAX_MEALS = 5000;
 const MAX_DELETIONS = 20000;
+const MAX_SAVED_MEALS = 1000;
+const MAX_DELETED_SAVED_MEALS = 5000;
 const DEFAULT_GOALS = { calories: 1900, protein: 180, carbs: 150, fat: 55 };
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,80}$/;
 
@@ -52,12 +54,32 @@ function sanitizeState(raw) {
       notes: String(meal.notes || "").slice(0, 500)
     };
   });
+  const rawSavedMeals = raw.savedMeals ?? [];
+  if (!Array.isArray(rawSavedMeals) || rawSavedMeals.length > MAX_SAVED_MEALS) throw new Error("Too many saved meals to sync.");
+  const savedMeals = rawSavedMeals.map(meal => {
+    if (!meal || typeof meal !== "object" || !ID_PATTERN.test(String(meal.id || ""))) throw new Error("Invalid saved meal.");
+    const name = String(meal.name || "").trim();
+    const serving = String(meal.serving || "1 serving").trim();
+    if (!name || name.length > 100 || !serving || serving.length > 80) throw new Error("Invalid saved meal.");
+    return {
+      id: meal.id,
+      name,
+      serving,
+      calories: numberInRange(meal.calories, 100000, "saved meal calories"),
+      protein: numberInRange(meal.protein, 10000, "saved meal protein"),
+      carbs: numberInRange(meal.carbs, 10000, "saved meal carbs"),
+      fat: numberInRange(meal.fat, 10000, "saved meal fat")
+    };
+  });
   const rawDeleted = raw.deletedMealIds ?? [];
   if (!Array.isArray(rawDeleted) || rawDeleted.length > MAX_DELETIONS) throw new Error("Too many deletion records to sync.");
   const deletedMealIds = [...new Set(rawDeleted.filter(id => typeof id === "string" && ID_PATTERN.test(id)))];
+  const rawDeletedSaved = raw.deletedSavedMealIds ?? [];
+  if (!Array.isArray(rawDeletedSaved) || rawDeletedSaved.length > MAX_DELETED_SAVED_MEALS) throw new Error("Too many saved meal deletions to sync.");
+  const deletedSavedMealIds = [...new Set(rawDeletedSaved.filter(id => typeof id === "string" && ID_PATTERN.test(id)))];
   const goalUpdatedAt = Number(raw.goalUpdatedAt || 0);
   if (!Number.isSafeInteger(goalUpdatedAt) || goalUpdatedAt < 0) throw new Error("Invalid goal timestamp.");
-  return { goals, goalUpdatedAt, meals, deletedMealIds };
+  return { goals, goalUpdatedAt, meals, deletedMealIds, savedMeals, deletedSavedMealIds };
 }
 
 function mergeStates(current, incoming) {
@@ -68,12 +90,21 @@ function mergeStates(current, incoming) {
     if (!deletedMealIds.has(meal.id)) mealsById.set(meal.id, meal);
   }
   if (mealsById.size > MAX_MEALS) throw new Error("Too many meals to sync.");
+  const deletedSavedMealIds = new Set([...(current?.deletedSavedMealIds || []), ...incoming.deletedSavedMealIds]);
+  if (deletedSavedMealIds.size > MAX_DELETED_SAVED_MEALS) throw new Error("Too many saved meal deletions to sync.");
+  const savedMealsById = new Map();
+  for (const meal of [...(current?.savedMeals || []), ...incoming.savedMeals]) {
+    if (!deletedSavedMealIds.has(meal.id)) savedMealsById.set(meal.id, meal);
+  }
+  if (savedMealsById.size > MAX_SAVED_MEALS) throw new Error("Too many saved meals to sync.");
   const currentWins = current && current.goalUpdatedAt >= incoming.goalUpdatedAt;
   return {
     goals: currentWins ? current.goals : incoming.goals,
     goalUpdatedAt: Math.max(current?.goalUpdatedAt || 0, incoming.goalUpdatedAt),
     meals: [...mealsById.values()],
-    deletedMealIds: [...deletedMealIds].sort()
+    deletedMealIds: [...deletedMealIds].sort(),
+    savedMeals: [...savedMealsById.values()],
+    deletedSavedMealIds: [...deletedSavedMealIds].sort()
   };
 }
 
