@@ -1,4 +1,4 @@
-const CACHE = "macrosnap-shell-v2";
+const CACHE = "macrosnap-shell-v3";
 const FILES = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", event => {
