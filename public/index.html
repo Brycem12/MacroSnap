@@ -45,8 +45,12 @@
       <section class="section-head"><div><div class="eyebrow">KEEP YOUR MOMENTUM</div><h2>Today's meals</h2></div><span class="count-badge" id="journalCount">0 LOGGED</span></section>
       <section id="mealList" class="meal-list"><div class="empty-state"><div class="empty-icon">🥗</div><b>Your food journal starts here</b><p>Snap a meal photo to add it to today's totals.</p></div></section>
 
-      <button class="capture-btn" id="captureBtn"><span class="camera-icon">＋</span><span><b>Log a meal</b><small>Take a photo or choose from library</small></span><span class="capture-arrow">→</span></button>
+      <div class="photo-actions">
+        <button type="button" class="capture-btn" id="captureBtn"><span class="camera-icon">📷</span><span><b>Log a meal</b><small>Take a new photo with your camera</small></span><span class="capture-arrow">→</span></button>
+        <button type="button" class="library-btn" id="libraryBtn"><span class="library-icon">▧</span><span><b>Choose a saved photo</b><small>Photo Library or Files</small></span><span class="capture-arrow">→</span></button>
+      </div>
       <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+      <input id="libraryInput" type="file" accept="image/*" hidden>
       <p class="disclaimer">Nutrition from photos is an estimate. Check serving sizes, cooking oils, sauces and hidden ingredients.</p>
     </main>
     <nav class="bottom-nav"><div class="nav-item active"><span>◫</span>Today</div><div class="nav-item" id="historyNav"><span>▤</span>History</div><div class="nav-item" id="goalsNav"><span>◎</span>Goals</div></nav>
