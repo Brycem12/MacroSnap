@@ -31,8 +31,8 @@ export default async (request) => {
     if (!photo.type?.startsWith("image/")) {
       return Response.json({ error: "Please upload an image file." }, { status: 400, headers: corsHeaders });
     }
-    if (photo.size > 8 * 1024 * 1024) {
-      return Response.json({ error: "Please use a photo smaller than 8 MB." }, { status: 413, headers: corsHeaders });
+    if (photo.size > 4 * 1024 * 1024) {
+      return Response.json({ error: "Please use a photo smaller than 4 MB." }, { status: 413, headers: corsHeaders });
     }
 
     const bytes = Buffer.from(await photo.arrayBuffer());
@@ -59,7 +59,7 @@ Return only the requested JSON fields. Calories and macros must be non-negative 
     };
 
     const geminiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
       {
         method: "POST",
         headers: {
@@ -74,7 +74,6 @@ Return only the requested JSON fields. Calories and macros must be non-negative 
             ]
           }],
           generationConfig: {
-            temperature: 0.2,
             responseMimeType: "application/json",
             responseSchema: schema
           }
