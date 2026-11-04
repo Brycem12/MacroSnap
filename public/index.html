@@ -60,8 +60,13 @@
         <article class="remaining-card"><div class="eyebrow">LEFT FOR TODAY</div><div class="remaining-grid"><div class="remaining-stat"><b id="remainingCalories">0</b><small>calories</small></div><div class="remaining-stat"><b id="remainingProtein">0g</b><small>protein</small></div><div class="remaining-stat"><b id="remainingCarbs">0g</b><small>carbs</small></div><div class="remaining-stat"><b id="remainingFat">0g</b><small>fat</small></div></div></article>
         <div id="recommendationContent"></div>
       </section>
+      <section id="savedMealsView" class="saved-meals-view" hidden>
+        <div class="section-head saved-section-head"><div><div class="eyebrow">YOUR FAVORITES</div><h2>Saved meals</h2></div><button type="button" class="primary-btn saved-add-btn" id="addSavedMealBtn">+ Add meal</button></div>
+        <p class="recommendations-intro">Save meals with their macros. Add one to today or let Eat build a plan from your saved portions.</p>
+        <div id="savedMealsList" class="saved-meals-list"></div>
+      </section>
     </main>
-    <nav class="bottom-nav" aria-label="Main navigation"><button type="button" class="nav-item active" id="todayNav"><span>◫</span>Today</button><button type="button" class="nav-item" id="recommendationsNav"><span>✦</span>Eat</button><button type="button" class="nav-item" id="historyNav"><span>▤</span>History</button><button type="button" class="nav-item" id="goalsNav"><span>◎</span>Goals</button></nav>
+    <nav class="bottom-nav" aria-label="Main navigation"><button type="button" class="nav-item active" id="todayNav"><span>◫</span>Today</button><button type="button" class="nav-item" id="recommendationsNav"><span>✦</span>Eat</button><button type="button" class="nav-item" id="savedMealsNav"><span>☆</span>Saved</button><button type="button" class="nav-item" id="historyNav"><span>▤</span>History</button><button type="button" class="nav-item" id="goalsNav"><span>◎</span>Goals</button></nav>
   </div>
 
   <dialog id="mealDialog" class="sheet">
@@ -77,7 +82,24 @@
         <label>Fat (g)<input id="mealFat" type="number" min="0" step="0.1" required></label>
       </div>
       <label>Notes (optional)<textarea id="mealNotes" rows="2" placeholder="Ingredients, portion details…"></textarea></label>
+      <label class="check-row"><input id="saveAsTemplate" type="checkbox"> Save this meal for next time</label>
       <div class="button-row"><button type="button" class="secondary-btn" id="manualBtn">Enter manually</button><button type="submit" class="primary-btn" id="saveMealBtn">Save meal</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="savedMealDialog" class="sheet">
+    <form method="dialog" id="savedMealForm">
+      <div class="sheet-handle"></div><div class="sheet-title-row"><div><div class="eyebrow">YOUR FAVORITES</div><h2>Save a meal</h2></div><button class="close-btn" value="cancel" aria-label="Close">×</button></div>
+      <p class="disclaimer">Enter the macros for one usual serving. You can reuse it in your daily log and rest-of-day plan.</p>
+      <label>Meal name<input id="savedMealName" required maxlength="100" placeholder="e.g. Chicken rice bowl"></label>
+      <label>Serving size<input id="savedMealServing" required maxlength="80" value="1 serving" placeholder="e.g. 1 bowl"></label>
+      <div class="field-grid">
+        <label>Calories<input id="savedMealCalories" type="number" min="0" max="100000" step="1" required></label>
+        <label>Protein (g)<input id="savedMealProtein" type="number" min="0" max="10000" step="0.1" required></label>
+        <label>Carbs (g)<input id="savedMealCarbs" type="number" min="0" max="10000" step="0.1" required></label>
+        <label>Fat (g)<input id="savedMealFat" type="number" min="0" max="10000" step="0.1" required></label>
+      </div>
+      <div class="button-row"><button type="submit" class="primary-btn full-btn">Save meal</button></div>
     </form>
   </dialog>
 
