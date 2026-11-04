@@ -23,6 +23,7 @@
     </header>
 
     <main>
+      <div id="todayView">
       <section class="date-row">
         <div><div class="eyebrow">DAILY OVERVIEW</div><h2 id="todayLabel">Today</h2></div>
         <div class="streak">🔥 <b id="mealCount">0</b><small> meals</small></div>
@@ -52,8 +53,15 @@
       <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
       <input id="libraryInput" type="file" accept="image/*" hidden>
       <p class="disclaimer">Nutrition from photos is an estimate. Check serving sizes, cooking oils, sauces and hidden ingredients.</p>
+      </div>
+      <section id="recommendationsView" class="recommendations-view" hidden>
+        <div class="section-head"><div><div class="eyebrow">BASED ON YOUR REMAINING TARGETS</div><h2>What to eat next</h2></div></div>
+        <p class="recommendations-intro">A practical food combination sized around what is left in your daily goals. Ideas update when your meals or goals change.</p>
+        <article class="remaining-card"><div class="eyebrow">LEFT FOR TODAY</div><div class="remaining-grid"><div class="remaining-stat"><b id="remainingCalories">0</b><small>calories</small></div><div class="remaining-stat"><b id="remainingProtein">0g</b><small>protein</small></div><div class="remaining-stat"><b id="remainingCarbs">0g</b><small>carbs</small></div><div class="remaining-stat"><b id="remainingFat">0g</b><small>fat</small></div></div></article>
+        <div id="recommendationContent"></div>
+      </section>
     </main>
-    <nav class="bottom-nav"><div class="nav-item active"><span>◫</span>Today</div><div class="nav-item" id="historyNav"><span>▤</span>History</div><div class="nav-item" id="goalsNav"><span>◎</span>Goals</div></nav>
+    <nav class="bottom-nav" aria-label="Main navigation"><button type="button" class="nav-item active" id="todayNav"><span>◫</span>Today</button><button type="button" class="nav-item" id="recommendationsNav"><span>✦</span>Eat</button><button type="button" class="nav-item" id="historyNav"><span>▤</span>History</button><button type="button" class="nav-item" id="goalsNav"><span>◎</span>Goals</button></nav>
   </div>
 
   <dialog id="mealDialog" class="sheet">
