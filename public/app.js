@@ -174,7 +174,12 @@ async function analyzePhoto(imageDataUrl){
  const accessCode=localStorage.getItem("macrosnap-access-code")||"";
  const fd=new FormData();fd.append("photo",photo,"meal.jpg");fd.append("date",new Date().toISOString());
  const res=await fetch("/.netlify/functions/analyze-meal",{method:"POST",body:fd,headers:{"X-Macrosnap-Access-Code":accessCode}});
- if(!res.ok){const problem=await res.json().catch(()=>({}));throw new Error(problem.error||"AI service could not analyze this photo.");}
+ if(!res.ok){
+  const contentType=res.headers.get("content-type")||"unknown content type",body=await res.text();
+  let problem={};try{problem=JSON.parse(body)}catch{}
+  if(problem?.error)throw new Error(problem.error);
+  throw new Error("AI service returned HTTP "+res.status+" ("+contentType+"). Check the Netlify analyze-meal function logs.");
+ }
  const d=await res.json();
  for(const k of ["name","calories","proteinGrams","carbsGrams","fatGrams"])if(d[k]===undefined)throw new Error("AI service response is missing nutrition fields.");
  return d;
