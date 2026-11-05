@@ -13,10 +13,11 @@ export default async (request) => {
     return Response.json({ error: "Use POST to analyze a meal photo." }, { status: 405, headers: corsHeaders });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const openAiApiKey = process.env.OPENAI_API_KEY;
+  const geminiApiKey = process.env.GEMINI_API_KEY;
   const accessCode = process.env.MACROSNAP_ACCESS_CODE;
-  if (!apiKey) {
-    return Response.json({ error: "The Gemini API key is not configured on the server yet." }, { status: 500, headers: corsHeaders });
+  if (!openAiApiKey && !geminiApiKey) {
+    return Response.json({ error: "AI is not configured on the server. Add OPENAI_API_KEY in Netlify, or configure GEMINI_API_KEY." }, { status: 500, headers: corsHeaders });
   }
   if (accessCode && request.headers.get("x-macrosnap-access-code") !== accessCode) {
     return Response.json({ error: "Access code is missing or incorrect. Open Settings and enter your MacroSnap access code." }, { status: 401, headers: corsHeaders });
@@ -62,95 +63,161 @@ Return only the requested JSON fields. Calories and macros must be non-negative 
       required: ["name", "calories", "proteinGrams", "carbsGrams", "fatGrams", "confidence", "notes"]
     };
 
-    stage = "call Gemini";
+    stage = openAiApiKey ? "call OpenAI" : "call Gemini";
     console.info("[analyze-meal] photo accepted", { sizeBytes: photo.size, mimeType });
+    let text;
 
-    const requestBody = JSON.stringify({
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType, data: base64 } }
-        ]
-      }],
-      generationConfig: {
-        thinkingConfig: { thinkingLevel: "low" },
-        responseMimeType: "application/json",
-        responseSchema: schema
-      }
-    });
-    const models = ["gemini-3.8-flash", "gemini-3.7-flash"];
-    let payload;
-    let selectedModel;
-
-    for (let index = 0; index < models.length; index += 1) {
-      const model = models[index];
-      const geminiStartedAt = Date.now();
+    if (openAiApiKey) {
+      const openAiStartedAt = Date.now();
+      const openAiSchema = {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          calories: { type: "number" },
+          proteinGrams: { type: "number" },
+          carbsGrams: { type: "number" },
+          fatGrams: { type: "number" },
+          confidence: { type: "number" },
+          notes: { type: "string" }
+        },
+        required: ["name", "calories", "proteinGrams", "carbsGrams", "fatGrams", "confidence", "notes"],
+        additionalProperties: false
+      };
+      const openAiResponse = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + openAiApiKey
+        },
+        body: JSON.stringify({
+          model: "gpt-6-luna",
+          input: [{
+            role: "user",
+            content: [
+              { type: "input_text", text: prompt },
+              {
+                type: "input_image",
+                image_url: "data:" + mimeType + ";base64," + base64,
+                detail: "auto"
+              }
+            ]
+          }],
+          text: {
+            format: {
+              type: "json_schema",
+              name: "meal_estimate",
+              strict: true,
+              schema: openAiSchema
+            }
+          },
+          max_output_tokens: 400
+        }),
+        signal: AbortSignal.timeout(35_000)
+      });
+      let openAiPayload;
       try {
-        const geminiResponse = await fetch(
-          "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-goog-api-key": apiKey
-            },
-            body: requestBody,
-            signal: AbortSignal.timeout(20_000)
-          }
-        );
-        const responseText = await geminiResponse.text();
-        try {
-          payload = responseText ? JSON.parse(responseText) : {};
-        } catch {
-          payload = {};
-        }
-        console.info("[analyze-meal] Gemini responded", {
-          model,
-          status: geminiResponse.status,
-          durationMs: Date.now() - geminiStartedAt
-        });
-
-        if (geminiResponse.ok) {
-          selectedModel = model;
-          break;
-        }
-
-        const detail = payload?.error?.message || "Gemini could not analyze this photo.";
-        const overloaded =
-          geminiResponse.status === 503 ||
-          payload?.error?.status === "UNAVAILABLE" ||
-          /currently experiencing high demand|temporarily overloaded|model capacity/i.test(detail);
-
-        if (overloaded && index < models.length - 1) {
-          console.warn("[analyze-meal] Gemini capacity fallback", { model, status: geminiResponse.status });
-          await new Promise(resolve => setTimeout(resolve, 400));
-          continue;
-        }
-
-        return Response.json(
-          { error: detail },
-          { status: overloaded ? 503 : 502, headers: corsHeaders }
-        );
-      } catch (error) {
-        const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
-        if (timedOut && index < models.length - 1) {
-          console.warn("[analyze-meal] Gemini timeout fallback", { model });
-          await new Promise(resolve => setTimeout(resolve, 400));
-          continue;
-        }
-        throw error;
+        openAiPayload = await openAiResponse.json();
+      } catch {
+        openAiPayload = {};
       }
+      console.info("[analyze-meal] OpenAI responded", {
+        model: "gpt-6-luna",
+        status: openAiResponse.status,
+        durationMs: Date.now() - openAiStartedAt
+      });
+      if (!openAiResponse.ok) {
+        const detail = openAiPayload?.error?.message || "OpenAI could not analyze this photo.";
+        return Response.json({ error: detail }, { status: openAiResponse.status === 429 ? 429 : 502, headers: corsHeaders });
+      }
+      const outputContent = openAiPayload?.output?.flatMap(item => item?.content || []) || [];
+      text = outputContent.find(item => item.type === "output_text")?.text || openAiPayload?.output_text || "";
+    } else {
+      const requestBody = JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: mimeType, data: base64 } }
+          ]
+        }],
+        generationConfig: {
+          thinkingConfig: { thinkingLevel: "low" },
+          responseMimeType: "application/json",
+          responseSchema: schema
+        }
+      });
+      const models = ["gemini-3.8-flash", "gemini-3.7-flash"];
+      let payload;
+      let selectedModel;
+
+      for (let index = 0; index < models.length; index += 1) {
+        const model = models[index];
+        const geminiStartedAt = Date.now();
+        try {
+          const geminiResponse = await fetch(
+            "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": geminiApiKey
+              },
+              body: requestBody,
+              signal: AbortSignal.timeout(20_000)
+            }
+          );
+          const responseText = await geminiResponse.text();
+          try {
+            payload = responseText ? JSON.parse(responseText) : {};
+          } catch {
+            payload = {};
+          }
+          console.info("[analyze-meal] Gemini responded", {
+            model,
+            status: geminiResponse.status,
+            durationMs: Date.now() - geminiStartedAt
+          });
+
+          if (geminiResponse.ok) {
+            selectedModel = model;
+            break;
+          }
+
+          const detail = payload?.error?.message || "Gemini could not analyze this photo.";
+          const overloaded =
+            geminiResponse.status === 503 ||
+            payload?.error?.status === "UNAVAILABLE" ||
+            /currently experiencing high demand|temporarily overloaded|model capacity/i.test(detail);
+
+          if (overloaded && index < models.length - 1) {
+            console.warn("[analyze-meal] Gemini capacity fallback", { model, status: geminiResponse.status });
+            await new Promise(resolve => setTimeout(resolve, 400));
+            continue;
+          }
+
+          return Response.json(
+            { error: detail },
+            { status: overloaded ? 503 : 502, headers: corsHeaders }
+          );
+        } catch (error) {
+          const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
+          if (timedOut && index < models.length - 1) {
+            console.warn("[analyze-meal] Gemini timeout fallback", { model });
+            await new Promise(resolve => setTimeout(resolve, 400));
+            continue;
+          }
+          throw error;
+        }
+      }
+
+      if (!selectedModel || !payload) {
+        throw new Error("Gemini could not analyze this photo. Please try again.");
+      }
+      console.info("[analyze-meal] using Gemini model", { model: selectedModel });
+      text = payload?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
     }
 
-    if (!selectedModel || !payload) {
-      throw new Error("Gemini could not analyze this photo. Please try again.");
-    }
-    console.info("[analyze-meal] using model", { model: selectedModel });
-    stage = "read Gemini response";
-
-    const text = payload?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("");
     if (!text) {
-      return Response.json({ error: "Gemini returned no nutrition estimate. Try another photo." }, { status: 502, headers: corsHeaders });
+      return Response.json({ error: "The AI returned no nutrition estimate. Try another photo." }, { status: 502, headers: corsHeaders });
     }
     stage = "validate estimate";
     const result = JSON.parse(text);
