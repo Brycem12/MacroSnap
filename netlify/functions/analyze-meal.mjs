@@ -236,6 +236,6 @@ Return only the requested JSON fields. Calories and macros must be non-negative 
   } catch (error) {
     const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
     console.error("[analyze-meal] failed", { stage, errorName: error?.name || "Error", durationMs: Date.now() - requestStartedAt });
-    return Response.json({ error: timedOut ? "Gemini took too long to respond. Please try again with a smaller photo." : error.message || "Meal analysis failed. Please try again." }, { status: timedOut ? 504 : 500, headers: corsHeaders });
+    return Response.json({ error: timedOut ? "The AI service took too long to respond. Please try again with a smaller photo." : error.message || "Meal analysis failed. Please try again." }, { status: timedOut ? 504 : 500, headers: corsHeaders });
   }
 };
