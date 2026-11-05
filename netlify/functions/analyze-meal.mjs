@@ -63,40 +63,90 @@ Return only the requested JSON fields. Calories and macros must be non-negative 
     };
 
     stage = "call Gemini";
-    const geminiStartedAt = Date.now();
     console.info("[analyze-meal] photo accepted", { sizeBytes: photo.size, mimeType });
-    const geminiResponse = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: mimeType, data: base64 } }
-            ]
-          }],
-          generationConfig: {
-            thinkingConfig: { thinkingLevel: "low" },
-            responseMimeType: "application/json",
-            responseSchema: schema
-          }
-        }),
-        signal: AbortSignal.timeout(45_000)
-      }
-    );
-    console.info("[analyze-meal] Gemini responded", { status: geminiResponse.status, durationMs: Date.now() - geminiStartedAt });
 
-    stage = "read Gemini response";
-    const payload = await geminiResponse.json();
-    if (!geminiResponse.ok) {
-      const detail = payload?.error?.message || "Gemini could not analyze this photo.";
-      return Response.json({ error: detail }, { status: 502, headers: corsHeaders });
+    const requestBody = JSON.stringify({
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: mimeType, data: base64 } }
+        ]
+      }],
+      generationConfig: {
+        thinkingConfig: { thinkingLevel: "low" },
+        responseMimeType: "application/json",
+        responseSchema: schema
+      }
+    });
+    const models = ["gemini-3.8-flash", "gemini-3.7-flash"];
+    let payload;
+    let selectedModel;
+
+    for (let index = 0; index < models.length; index += 1) {
+      const model = models[index];
+      const geminiStartedAt = Date.now();
+      try {
+        const geminiResponse = await fetch(
+          "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey
+            },
+            body: requestBody,
+            signal: AbortSignal.timeout(20_000)
+          }
+        );
+        const responseText = await geminiResponse.text();
+        try {
+          payload = responseText ? JSON.parse(responseText) : {};
+        } catch {
+          payload = {};
+        }
+        console.info("[analyze-meal] Gemini responded", {
+          model,
+          status: geminiResponse.status,
+          durationMs: Date.now() - geminiStartedAt
+        });
+
+        if (geminiResponse.ok) {
+          selectedModel = model;
+          break;
+        }
+
+        const detail = payload?.error?.message || "Gemini could not analyze this photo.";
+        const overloaded =
+          geminiResponse.status === 503 ||
+          payload?.error?.status === "UNAVAILABLE" ||
+          /currently experiencing high demand|temporarily overloaded|model capacity/i.test(detail);
+
+        if (overloaded && index < models.length - 1) {
+          console.warn("[analyze-meal] Gemini capacity fallback", { model, status: geminiResponse.status });
+          await new Promise(resolve => setTimeout(resolve, 400));
+          continue;
+        }
+
+        return Response.json(
+          { error: detail },
+          { status: overloaded ? 503 : 502, headers: corsHeaders }
+        );
+      } catch (error) {
+        const timedOut = error?.name === "TimeoutError" || error?.name === "AbortError";
+        if (timedOut && index < models.length - 1) {
+          console.warn("[analyze-meal] Gemini timeout fallback", { model });
+          await new Promise(resolve => setTimeout(resolve, 400));
+          continue;
+        }
+        throw error;
+      }
     }
+
+    if (!selectedModel || !payload) {
+      throw new Error("Gemini could not analyze this photo. Please try again.");
+    }
+    console.info("[analyze-meal] using model", { model: selectedModel });
+    stage = "read Gemini response";
 
     const text = payload?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("");
     if (!text) {
