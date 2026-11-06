@@ -129,7 +129,18 @@
   </dialog>
 
   <dialog id="historyDialog" class="sheet">
-    <form method="dialog"><div class="sheet-handle"></div><div class="sheet-title-row"><div><div class="eyebrow">YOUR LOG</div><h2>Meal history</h2></div><button class="close-btn" value="cancel">×</button></div><div id="historyContent" class="history-content"></div><button class="primary-btn full-btn" value="close">Done</button></form>
+    <form method="dialog"><div class="sheet-handle"></div><div class="sheet-title-row"><div><div class="eyebrow">YOUR LOG</div><h2>Meal history</h2></div><button class="close-btn" value="cancel" aria-label="Close">×</button></div>
+      <div id="historyContent" class="history-content">
+        <div class="history-calendar">
+          <div class="history-month-nav"><button type="button" id="historyPrevMonth" aria-label="Previous month">‹</button><h3 id="historyMonthLabel"></h3><button type="button" id="historyNextMonth" aria-label="Next month">›</button></div>
+          <p class="history-calendar-hint">Each day shows calories, then protein · carbs · fat in grams.</p>
+          <div class="history-weekdays" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+          <div id="historyCalendarGrid" class="history-calendar-grid" role="group" aria-label="Meal history calendar"></div>
+          <div id="historyDaySummary" class="history-day-summary" aria-live="polite"></div>
+        </div>
+      </div>
+      <button class="primary-btn full-btn" value="close">Done</button>
+    </form>
   </dialog>
   <script src="app.js"></script>
 </body>
