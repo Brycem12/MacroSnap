@@ -217,7 +217,51 @@ function openGoals(){const g=state.goals;$("goalCalories").value=g.calories;$("g
 if($("enableSyncBtn"))$("enableSyncBtn").addEventListener("click",async()=>{const code=$("syncAccessCode").value.trim();if(code.length<16){setSyncStatus("Use a sync code with at least 16 characters.");return}localStorage.setItem(SYNC_CODE_KEY,code);localStorage.setItem(SYNC_ENABLED_KEY,"true");$("disableSyncBtn").hidden=false;await syncWithServer()});
 if($("disableSyncBtn"))$("disableSyncBtn").addEventListener("click",()=>{localStorage.removeItem(SYNC_ENABLED_KEY);localStorage.removeItem(SYNC_CODE_KEY);clearTimeout(syncTimer);$("disableSyncBtn").hidden=true;setSyncStatus("Sync is off here. Your shared data remains on the Netlify site.")});
 $("goalsForm").addEventListener("submit",e=>{if(e.submitter?.value==="cancel")return;e.preventDefault();state.goals={calories:+$("goalCalories").value,protein:+$("goalProtein").value,carbs:+$("goalCarbs").value,fat:+$("goalFat").value};state.goalUpdatedAt=Date.now();const accessCode=$("aiAccessCode").value.trim();if(accessCode)localStorage.setItem("macrosnap-access-code",accessCode);else localStorage.removeItem("macrosnap-access-code");persist();$("goalsDialog").close();update()});
-$("historyNav").addEventListener("click",()=>{activateTab("today");const all=[...state.meals].sort((a,b)=>new Date(b.date)-new Date(a.date));$("historyContent").innerHTML=all.length?all.map(m=>`<div class="meal-row"><div class="meal-info"><b>${escapeHtml(m.name)}</b><small>${new Date(m.date).toLocaleString()}</small></div><b>${fmt(m.calories)} kcal</b></div>`).join(""):'<p class="disclaimer">No meals logged yet.</p>';$("historyDialog").showModal()});
+let historyMonth = new Date(new Date().getFullYear(),new Date().getMonth(),1);
+let historySelectedDate = "";
+
+function localDayKey(value){
+ const date=value instanceof Date?value:new Date(value);
+ if(Number.isNaN(date.getTime()))return "";
+ return date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
+}
+function historyDayTotals(meals){
+ return meals.reduce((sum,meal)=>({calories:sum.calories+Number(meal.calories||0),protein:sum.protein+Number(meal.protein||0),carbs:sum.carbs+Number(meal.carbs||0),fat:sum.fat+Number(meal.fat||0)}),{calories:0,protein:0,carbs:0,fat:0});
+}
+function renderHistoryCalendar(){
+ const year=historyMonth.getFullYear(),month=historyMonth.getMonth();
+ $("historyMonthLabel").textContent=historyMonth.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+ const mealsByDay=new Map();
+ state.meals.forEach(meal=>{const key=localDayKey(meal.date);if(!key)return;if(!mealsByDay.has(key))mealsByDay.set(key,[]);mealsByDay.get(key).push(meal)});
+ const grid=$("historyCalendarGrid"),offset=new Date(year,month,1).getDay(),daysInMonth=new Date(year,month+1,0).getDate(),todayKey=localDayKey(new Date());
+ let cells=Array.from({length:offset},()=>'<span class="history-calendar-blank" aria-hidden="true"></span>').join("");
+ for(let day=1;day<=daysInMonth;day++){
+  const key=year+"-"+String(month+1).padStart(2,"0")+"-"+String(day).padStart(2,"0"),meals=mealsByDay.get(key)||[],totals=historyDayTotals(meals);
+  const dateLabel=new Date(year,month,day,12).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"});
+  const classes=["history-day",meals.length?"has-meals":"",key===historySelectedDate?"selected":"",key===todayKey?"today":""].filter(Boolean).join(" ");
+  const label=meals.length?dateLabel+": "+fmt(totals.calories)+" calories, "+fmt(totals.protein)+" grams protein, "+fmt(totals.carbs)+" grams carbs, "+fmt(totals.fat)+" grams fat":dateLabel+": no meals logged";
+  cells+='<button type="button" class="'+classes+'" data-history-date="'+key+'" aria-label="'+label+'" aria-pressed="'+(key===historySelectedDate)+'" title="'+label+'"><span class="history-day-number">'+day+'</span><span class="history-day-calories">'+(meals.length?fmt(totals.calories):"—")+'</span><span class="history-day-macros">'+(meals.length?fmt(totals.protein)+" · "+fmt(totals.carbs)+" · "+fmt(totals.fat):" ")+'</span></button>';
+ }
+ grid.innerHTML=cells;
+ renderHistoryDay();
+}
+function renderHistoryDay(){
+ const key=historySelectedDate,summary=$("historyDaySummary");
+ if(!key){summary.innerHTML='<div class="history-empty">Choose a day to see its full totals.</div>';return}
+ const date=new Date(key+"T12:00:00"),meals=state.meals.filter(meal=>localDayKey(meal.date)===key).sort((a,b)=>new Date(a.date)-new Date(b.date)),totals=historyDayTotals(meals);
+ const title=date.toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"});
+ const mealRows=meals.length?'<div class="history-meals-list">'+meals.map(meal=>'<div class="history-meal-row"><div><b>'+escapeHtml(meal.name)+'</b><small>'+new Date(meal.date).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})+' · P '+fmt(meal.protein)+'g · C '+fmt(meal.carbs)+'g · F '+fmt(meal.fat)+'g</small></div><strong>'+fmt(meal.calories)+' kcal</strong></div>').join("")+'</div>':'<p class="history-empty">No meals logged for this day.</p>';
+ summary.innerHTML='<section class="history-selected-day"><div class="eyebrow">DAILY TOTALS</div><h3>'+title+'</h3><div class="history-totals"><div><b>'+fmt(totals.calories)+'</b><small>calories</small></div><div><b>'+fmt(totals.protein)+'g</b><small>protein</small></div><div><b>'+fmt(totals.carbs)+'g</b><small>carbs</small></div><div><b>'+fmt(totals.fat)+'g</b><small>fat</small></div></div>'+mealRows+'</section>';
+}
+function openHistory(){
+ activateTab("today");
+ const now=new Date();historyMonth=new Date(now.getFullYear(),now.getMonth(),1);historySelectedDate=localDayKey(now);
+ renderHistoryCalendar();$("historyDialog").showModal();
+}
+$("historyPrevMonth").addEventListener("click",()=>{historyMonth=new Date(historyMonth.getFullYear(),historyMonth.getMonth()-1,1);historySelectedDate="";renderHistoryCalendar()});
+$("historyNextMonth").addEventListener("click",()=>{historyMonth=new Date(historyMonth.getFullYear(),historyMonth.getMonth()+1,1);historySelectedDate="";renderHistoryCalendar()});
+$("historyCalendarGrid").addEventListener("click",event=>{const day=event.target.closest("[data-history-date]");if(!day)return;historySelectedDate=day.dataset.historyDate;renderHistoryCalendar()});
+$("historyNav").addEventListener("click",openHistory);
 if("serviceWorker" in navigator && location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
 window.addEventListener("focus",()=>{if(syncEnabled())syncWithServer()});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&syncEnabled())syncWithServer()});
